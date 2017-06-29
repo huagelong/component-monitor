@@ -24,7 +24,7 @@ class MonitorClient
     private $port = null;
 
     //超时时间
-    private $timeOut = 0.5;
+    private $timeOut = 0.01;
 
     private $serialization = null;
 
@@ -37,7 +37,7 @@ class MonitorClient
      * @param float $timeOut 超时时间,单位是s
      * @param obj $serialization 压缩解压缩工具
      */
-    function __construct($host, $port, $serialization = null, $timeOut = 0.5)
+    function __construct($host, $port, $serialization = null, $timeOut = 0.01)
     {
         $this->host = $host;
         $this->port = $port;
@@ -55,52 +55,16 @@ class MonitorClient
     {
         if ($this->serialization) $msg = $this->serialization->format($msg);
 
-        $client = new \swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_ASYNC);
+        $client = new \swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_SYNC);
 
-        $client->on('connect', function ($cli) use ($msg) {
-            $cli->send($msg);
-        });
 
-        $client->on("receive", [$this, "onReceive"]);
-        $client->on('close', [$this, 'onClose']);
-        $client->on('error', [$this, 'onError']);
+        $result = $client->connect($this->host, $this->port, $this->timeOut, false);
+        if($result){
+            $client->send($msg);
+            $client->close(true);
+        }
 
-        $client->connect($this->host, $this->port, $this->timeOut, true);
-
-        $client->close(true);
+        return $result;
     }
-
-    /**
-     * 错误
-     * @param $serv
-     * @param $fd
-     */
-    public function onError($client)
-    {
-    }
-
-
-    /**
-     * 关闭
-     * @param $server
-     * @param $fd
-     */
-    public function onClose($client)
-    {
-        echo "Monitor Client Connection lose\n";
-    }
-
-
-    /**
-     * 接收
-     * @param $client
-     * @param $data
-     */
-    public function onReceive($client, $data)
-    {
-        
-    }
-
-
 
 }
